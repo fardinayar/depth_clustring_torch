@@ -39,7 +39,7 @@ def cluster_disparity(disparity, fx, baseline, cx, cy, fy=None, *,
 
 def cluster_range_image(range_img, valid=None, *, row_angles=None, col_angles=None,
                         row_alphas=None, col_alphas=None, theta_deg=7.0,
-                        wrap=True, min_size=0):
+                        wrap=True, min_size=0, ground=False, ground_thresh_deg=5.0):
     """Cluster an already-organized range image (e.g. native LiDAR).
 
     Provide either the sensor angle tables (row_angles (H,), col_angles (W,)) or
@@ -51,6 +51,10 @@ def cluster_range_image(range_img, valid=None, *, row_angles=None, col_angles=No
         valid = range_img > 0
     if valid.dim() == 2:
         valid = valid.unsqueeze(0)
+    if ground and row_angles is not None:
+        g = remove_ground(range_img, valid, row_angles,
+                          ground_angle_thresh=math.radians(ground_thresh_deg))
+        valid = valid & ~g
     if row_alphas is None or col_alphas is None:
         if row_angles is None or col_angles is None:
             raise ValueError("Provide row_angles/col_angles or row_alphas/col_alphas")
@@ -62,7 +66,7 @@ def cluster_range_image(range_img, valid=None, *, row_angles=None, col_angles=No
 
 def cluster_point_cloud(points, *, n_rows=64, n_cols=1024, theta_deg=7.0,
                         wrap=True, min_size=0, fov_up_deg=None, fov_down_deg=None,
-                        valid=None, return_range_labels=False):
+                        valid=None, return_range_labels=False, ground=True, ground_thresh_deg=5.0):
     """Project a 3D point cloud (x-forward, y-left, z-up) into a spherical range
     image, cluster, and scatter labels back to the points.
 
@@ -70,6 +74,19 @@ def cluster_point_cloud(points, *, n_rows=64, n_cols=1024, theta_deg=7.0,
     return_range_labels, also the (B,Hs,Ws) range-image labels."""
     sp = points_to_spherical(points, n_rows, n_cols, valid=valid, wrap=wrap,
                              fov_up_deg=fov_up_deg, fov_down_deg=fov_down_deg)
+    if ground:
+        if fov_up_deg is None or fov_down_deg is None:
+            raise ValueError("fov_up_deg and fov_down_deg must be explicitly provided for ground removal.")
+        
+        row_elev = torch.linspace(math.radians(fov_up_deg), 
+                                  math.radians(fov_down_deg), 
+                                  n_rows, 
+                                  device=points.device, 
+                                  dtype=torch.float32)
+        
+        g = remove_ground(sp["sph_range"], sp["valid_sph"], row_elev,
+                          ground_angle_thresh=math.radians(ground_thresh_deg))
+        sp["valid_sph"] = sp["valid_sph"] & ~g
     labels_sph = cluster(sp["sph_range"], sp["valid_sph"],
                          sp["row_alphas"], sp["col_alphas"],
                          threshold=math.radians(theta_deg), wrap=wrap,
