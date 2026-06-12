@@ -12,18 +12,18 @@ The entire pipeline operates directly inside PyTorch, making it suitable for dee
 
 ---
 
-# Features
+# Why Depth Clustering Torch?
 
-* 🚀 Fully GPU-accelerated CUDA implementation
-* 🔥 Native PyTorch tensors as input/output
-* 📦 Batched processing support
-* 🎯 Stereo disparity clustering
-* 🌎 Organized range image clustering
-* ☁️ Unorganized point cloud clustering
-* ⚡ Parallel GPU Union-Find connected components
-* 🏔 Optional ground removal
-* 🔄 360° LiDAR wrap-around support
-* 🧠 Deep-learning friendly API
+*  Fully GPU-accelerated CUDA implementation
+*  Native PyTorch tensors as input/output
+*  Batched processing support
+*  Stereo disparity clustering
+*  Organized range image clustering
+*  Unorganized point cloud clustering
+*  Parallel GPU Union-Find connected components
+*  Optional ground removal
+*  360° LiDAR wrap-around support
+*  Deep-learning friendly API
 
 ---
 
@@ -71,49 +71,17 @@ Unorganized 3D points are first projected to a spherical range image, clustered 
 
 The algorithm groups neighboring depth measurements according to the angle formed between adjacent sensor rays.
 
-Given two neighboring depth measurements:
+Given two neighboring depth measurements $d_a$ and $d_b$ with an angular separation of $\alpha$, the inclination angle $\beta$ is computed as:
 
-* (d_a)
-* (d_b)
+$$
+\beta = \left| \arctan \left( \frac{d_2 \sin(\alpha)}{d_1 - d_2 \cos(\alpha)} \right) \right|
+$$
 
-and angular separation:
+where:
+* $d_1 = \max(d_a, d_b)$
+* $d_2 = \min(d_a, d_b)$
 
-[
-\alpha
-]
-
-the inclination angle is computed as:
-
-[
-\beta =
-\left|
-\arctan
-\left(
-\frac{d_2 \sin(\alpha)}
-{d_1 - d_2 \cos(\alpha)}
-\right)
-\right|
-]
-
-where
-
-[
-d_1 = \max(d_a,d_b)
-]
-
-and
-
-[
-d_2 = \min(d_a,d_b)
-]
-
-If
-
-[
-\beta > \theta
-]
-
-the two measurements are considered part of the same object and are merged into the same cluster.
+If $\beta > \theta$, the two measurements are considered part of the same object and are merged into the same cluster.
 
 Typical values:
 
@@ -125,31 +93,46 @@ Typical values:
 
 ---
 
-# Installation
+## Installation
+
+To set up the environment, follow these steps:
+
+1. **Environment Setup**
+   ```bash
+   conda create -n myenv python=3.10 -y
+   conda activate myenv
+   ```    
+2. **Install core dependencies**
+   ```bash
+   conda install -c conda-forge numpy scipy matplotlib opencv pyyaml -y
+   ```
+3. **PyTorch & CUDA**
+   ```bash
+   # Install PyTorch with CUDA 12.1 support
+   pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url [https://download.pytorch.org/whl/cu121](https://download.pytorch.org/whl/cu121)
+   ```    
+4. **Build & Install Library**
+   ```bash
+   git clone https://github.com/fardinayar/depth_clustring_torch
+   
+   cd depth_clustring_torch
+   
+   pip install -e . --no-build-isolation
+   ```
+
+**Note:** Ensure you have the CUDA Toolkit installed on your system that is compatible with your NVIDIA GPU drivers. You can verify your CUDA version with
+   ```bash
+   nvcc --version
+   ```
+also Ensure that `nvcc` is accessible through your PATH or that `CUDA_HOME` is correctly defined.
 
 ## Requirements
-
 * Python ≥ 3.8
 * PyTorch ≥ 1.12
 * CUDA Toolkit
 * NVIDIA GPU
-
-Ensure that `nvcc` is accessible through your PATH or that `CUDA_HOME` is correctly defined.
-
 ---
-
-## Install from Source
-
-```bash
-git clone https://github.com/ArianKheir/depth_clustering_torch.git
-
-cd depth_clustering_torch
-
-pip install -e .
-```
-
 The installation process automatically performs Ahead-of-Time (AOT) compilation of the CUDA extension.
-
 ---
 
 ## JIT Compilation
